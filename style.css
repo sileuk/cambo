@@ -1,0 +1,79 @@
+body {
+    /* ផ្ទៃខាងក្រោយជាក្រឡា (Grid Pattern) ពណ៌ស្រឡះ */
+    background-color: #e4eae6;
+    background-image: 
+        linear-gradient(to right, rgba(31, 58, 41, 0.15) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31, 58, 41, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+    
+    color: #111827;
+    font-family: 'Kantumruy Pro', sans-serif;
+    min-height: 100vh;
+}
+
+/* ផ្ទៃកាតទូไป */
+.glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(31, 58, 41, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* កាតទី១: សីតុណ្ហភាព (Temperature Card) */
+.glass-card-temp {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(255, 255, 255, 0.9));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.1);
+}
+
+/* កាតទី២: សំណើមខ្យល់ (Air Humidity Card) */
+.glass-card-humidity {
+    background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(255, 255, 255, 0.9));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(45, 212, 191, 0.1);
+}
+
+/* កាតទី៣: សំណើមដី (Soil Moisture Card) */
+.glass-card-soil {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(255, 255, 255, 0.9));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.1);
+}
+
+.glow-effect {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+.glow-effect-blue {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+/* Custom Scrollbar for Logs */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0B130E;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1F3A29;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #10B981;
+}
+.chart-card-bg {
+    /* ជំនួស 'chart-bg.jpg' ជាមួយឈ្មោះរូបភាព ឬ Link រូបភាពរបស់អ្នក */
+    background: linear-gradient(rgba(255, 255, 255, 0.372), rgba(255, 255, 255, 0.81)), url('03.jpg');
+    background-size: cover;
+    background-position: center;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(31, 58, 41, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}

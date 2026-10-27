@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធគ្រប់គ្រងកសិកម្ម ESP32 - Smart Agriculture BLE Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for real-time sensor trends -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font for Khmer & English -->
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- External CSS Link -->
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kantumruy Pro', 'sans-serif'],
+                    },
+                    colors: {
+                        agri: {
+                            dark: '#0B130E',
+                            card: '#122017',
+                            border: '#1F3A29',
+                            accent: '#10B981',
+                            glow: '#059669',
+                            water: '#3B82F6',
+                            warm: '#F59E0B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6">
+
+    <!-- Top Header -->
+    <header class="glass-card rounded-2xl p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-2xl shadow-lg">
+                <i class="fa-solid fa-leaf"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-wide text-emerald-700">
+                    ប្រព័ន្ធកសិកម្មឆ្លាតវៃ
+                </h1>
+                <p class="text-xs text-emerald-800/70">Smart Agriculture Web Bluetooth Dashboard</p>
+            </div>
+        </div>
+
+        <!-- Connection Control & Demo Mode Switcher -->
+        <div class="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
+            <!-- Connection Status Pill -->
+            <div id="statusPill" class="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 bg-red-100 text-red-700 border border-red-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="statusText">មិនទាន់ភ្ជាប់ (Disconnected)</span>
+            </div>
+
+            <!-- BLE Connect Button -->
+            <button id="connectBtn" onclick="toggleBluetoothConnection()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-all duration-300 flex items-center gap-2 shadow-lg shadow-emerald-950/20">
+                <i class="fa-bluetooth-b fab"></i>
+                <span>ភ្ជាប់ Bluetooth</span>
+            </button>
+
+            <!-- Demo Mode Toggle -->
+            <button id="demoBtn" onclick="toggleDemoMode()" class="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs border border-slate-300 transition-all flex items-center gap-2">
+                <i class="fa-solid fa-flask"></i>
+                <span id="demoText">សាកល្បង (Demo Mode: OFF)</span>
+            </button>
+        </div>
+        <button id="fullscreenBtn" onclick="toggleFullscreen()" class="px-3 py-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-medium text-xs border border-indigo-300 transition-all flex items-center gap-2">
+            <i class="fa-solid fa-expand"></i>
+            <span id="fullscreenText">ពេញអេក្រង់ (Fullscreen)</span>
+        </button>
+    </header>
+
+    <!-- Main Grid Content -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 flex-grow">
+
+        <!-- SENSORS COLUMN (2 COLUMNS SPAN ON LARGE SCREENS) -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Sensor Gauge Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Temperature Card -->
+                <div class="glass-card-temp rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wider text-slate-700">សីតុណ្ហភាព / Temp</p>
+                            <h2 class="text-3xl font-bold mt-2 text-amber-600"><span id="tempValue">--</span> <span class="text-lg">°C</span></h2>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-temperature-high"></i>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 mt-4 overflow-hidden">
+                        <div id="tempBar" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-2 text-right">កម្រិតធម្មតា: 20°C - 35°C</p>
+                </div>
+
+                <!-- Air Humidity Card -->
+                <div class="glass-card-humidity rounded-2xl p-5 relative overflow-hidden group hover:border-teal-500 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wider text-slate-700">សំណើមខ្យល់ / Air Hum</p>
+                            <h2 class="text-3xl font-bold mt-2 text-teal-600"><span id="humidityValue">--</span> <span class="text-lg">%</span></h2>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-wind"></i>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 mt-4 overflow-hidden">
+                        <div id="humidityBar" class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-2 text-right">កម្រិតល្អ: 50% - 80%</p>
+                </div>
+
+                <!-- Soil Moisture Card -->
+                <div class="glass-card-soil rounded-2xl p-5 relative overflow-hidden group hover:border-blue-500 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wider text-slate-700">សំណើមដី / Soil Moisture</p>
+                            <h2 class="text-3xl font-bold mt-2 text-blue-600"><span id="soilValue">--</span> <span class="text-lg">%</span></h2>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-droplet"></i>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 mt-4 overflow-hidden">
+                        <div id="soilBar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="soilStatusText" class="text-[11px] text-slate-600 mt-2 text-right">ស្ថានភាពដី: --</p>
+                </div>
+
+            </div>
+
+            <!-- Sensor Trend Live Chart -->
+            <div class="chart-card-bg rounded-2xl p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-semibold text-emerald-700 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line"></i>
+                        ប្រវត្តិទិន្នន័យ Sensor Real-Time
+                    </h3>
+                    <span class="text-xs bg-slate-200/80 text-slate-700 px-2.5 py-1 rounded-md">Update: 2s</span>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="sensorChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CONTROLS & LOGS COLUMN -->
+        <div class="space-y-6">
+
+            <!-- Control Panel Card -->
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-base font-semibold text-emerald-700 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i>
+                    បន្ទះបញ្ជាឧបករណ៍ (Control Panel)
+                </h3>
+
+                <!-- Water Pump Relay Control -->
+                <div class="bg-white/60 rounded-xl p-4 border border-emerald-900/10 mb-4 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div id="pumpIcon" class="w-11 h-11 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center text-xl transition-all">
+                            <i class="fa-solid fa-faucet-drip"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-sm text-slate-800">ម៉ូទ័របូមទឹក (Water Pump)</p>
+                            <p id="pumpStatusText" class="text-xs text-slate-500">ស្ថានភាព: បិទ (OFF)</p>
+                        </div>
+                    </div>
+
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="pumpToggle" onchange="togglePump(this.checked)" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <!-- Auto Irrigation Logic Toggle -->
+                <div class="bg-white/60 rounded-xl p-4 border border-emerald-900/10 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-sm text-slate-800">ស្រោចទឹកស្វ័យប្រវត្តិ (Auto Mode)</p>
+                            <p class="text-[11px] text-slate-500">បើកបូមស្វ័យប្រវត្តពេលសំណើមដី &ge; 90%</p>
+                        </div>
+                    </div>
+
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoToggle" onchange="toggleAutoIrrigation(this.checked)" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Bluetooth Communication Log Console -->
+            <div class="glass-card rounded-2xl p-5 flex flex-col h-80">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-emerald-700 flex items-center gap-2">
+                        <i class="fa-solid fa-terminal"></i>
+                        ប្រវត្តិសារព័ត៌មាន (BLE Log Console)
+                    </h3>
+                    <button onclick="clearConsoleLog()" class="text-xs text-slate-500 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-trash"></i> លុប (Clear)
+                    </button>
+                </div>
+
+                <div id="consoleLog" class="bg-slate-900 rounded-xl p-3 font-mono text-xs text-emerald-400 overflow-y-auto flex-grow space-y-1.5 border border-slate-800">
+                    <div class="text-slate-400">[System] Dashboard initialized. Ready for BLE connection.</div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-slate-500 py-3">
+      
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Nordic UART Service UUIDs
+        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Write
+        const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // Notify
+
+        let bleDevice = null;
+        let gattServer = null;
+        let rxCharacteristic = null;
+        let txCharacteristic = null;
+
+        let isDemoMode = false;
+        let demoInterval = null;
+        let autoIrrigationEnabled = false;
+        let currentPumpState = false;
+
+        // Chart.js Setup
+        let sensorChart;
+        const maxDataPoints = 15;
+
+        window.onload = () => {
+            initChart();
+        };
+
+        // Initialize Live Chart
+        function initChart() {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            sensorChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'សីតុណ្ហភាព Temp (°C)',
+                            borderColor: '#D97706',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            data: []
+                        },
+                        {
+                            label: 'សំណើមខ្យល់ Air Humidity (%)',
+                            borderColor: '#0D9488',
+                            backgroundColor: 'rgba(45, 212, 191, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            data: []
+                        },
+                        {
+                            label: 'សំណើមដី Soil Moisture (%)',
+                            borderColor: '#2563EB',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            data: []
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#475569', font: { family: 'Kantumruy Pro', size: 10 } }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#475569', font: { family: 'Kantumruy Pro', size: 10 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#334155', font: { family: 'Kantumruy Pro', size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Logger helper function
+        function log(message, type = 'info') {
+            const consoleLog = document.getElementById('consoleLog');
+            const timeStr = new Date().toLocaleTimeString();
+            let colorClass = 'text-emerald-400';
+
+            if (type === 'error') colorClass = 'text-red-400';
+            if (type === 'sent') colorClass = 'text-amber-300';
+            if (type === 'system') colorClass = 'text-blue-400';
+
+            const entry = document.createElement('div');
+            entry.className = colorClass;
+            entry.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> ${message}`;
+            consoleLog.appendChild(entry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        function clearConsoleLog() {
+            document.getElementById('consoleLog').innerHTML = '';
+            log("បានសំអាត Logs រួចរាល់", "system");
+        }
+
+        // Web Bluetooth Connect / Disconnect Handler
+        async function toggleBluetoothConnection() {
+            if (isDemoMode) {
+                alert("សូមបិទ Demo Mode ជាមុនសិន មុននឹងភ្ជាប់ Bluetooth ពិតប្រាកដ។");
+                return;
+            }
+
+            if (bleDevice && bleDevice.gatt.connected) {
+                disconnectBLE();
+            } else {
+                connectBLE();
+            }
+        }
+
+        async function connectBLE() {
+            try {
+                updateConnectionStatus('connecting');
+                log("កំពុងស្វែងរកឧបករណ៍ BLE (Searching for ESP32)...", "system");
+
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: "Agri_ESP32_BLE" }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                log(`បានស្វែងរកឃើញ: ${bleDevice.name}! កំពុងតភ្ជាប់...`, "system");
+                gattServer = await bleDevice.gatt.connect();
+
+                log("បានតភ្ជាប់ GATT Server! កំពុងស្វែងរក Service...", "system");
+                const service = await gattServer.getPrimaryService(SERVICE_UUID);
+
+                rxCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
+                txCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
+
+                await txCharacteristic.startNotifications();
+                txCharacteristic.addEventListener('characteristicvaluechanged', handleSensorData);
+
+                updateConnectionStatus('connected');
+                log("តភ្ជាប់បានជោគជ័យ! រង់ចាំទទួលទិន្នន័យ Sensor...", "system");
+
+            } catch (error) {
+                log(`ការតភ្ជាប់បរាជ័យ: ${error.message}`, "error");
+                updateConnectionStatus('disconnected');
+            }
+        }
+
+        function disconnectBLE() {
+            if (bleDevice && bleDevice.gatt.connected) {
+                bleDevice.gatt.disconnect();
+            }
+        }
+
+        function onDisconnected() {
+            updateConnectionStatus('disconnected');
+            log("ការតភ្ជាប់ Bluetooth ត្រូវបានផ្ដាច់! (Disconnected)", "error");
+        }
+
+        function updateConnectionStatus(status) {
+            const statusPill = document.getElementById('statusPill');
+            const statusText = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+
+            if (status === 'connected') {
+                statusPill.className = "px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 bg-emerald-100 text-emerald-700 border border-emerald-300";
+                statusText.innerText = "បានភ្ជាប់ (Connected)";
+                connectBtn.innerHTML = `<i class="fa-solid fa-plug-circle-xmark"></i> <span>ផ្តាច់ BLE</span>`;
+                connectBtn.className = "px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-all shadow-lg";
+            } else if (status === 'connecting') {
+                statusPill.className = "px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 bg-amber-100 text-amber-700 border border-amber-300";
+                statusText.innerText = "កំពុងតភ្ជាប់ (Connecting...)";
+                connectBtn.disabled = true;
+            } else {
+                statusPill.className = "px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 bg-red-100 text-red-700 border border-red-300";
+                statusText.innerText = "មិនទាន់ភ្ជាប់ (Disconnected)";
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = `<i class="fa-bluetooth-b fab"></i> <span>ភ្ជាប់ Bluetooth</span>`;
+                connectBtn.className = "px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-all shadow-lg";
+            }
+        }
+
+        // Handle Receiving Sensor Data from ESP32
+        function handleSensorData(event) {
+            const value = new TextDecoder().decode(event.target.value);
+            log(`ទទួលទិន្នន័យពី ESP32: "${value}"`);
+            processSensorDataString(value);
+        }
+
+        // Process data format "Temp,Humidity,SoilMoisture" e.g. "28.5,65.0,42"
+        function processSensorDataString(dataStr) {
+            const parts = dataStr.split(',');
+            if (parts.length >= 3) {
+                const temp = parseFloat(parts[0]);
+                const humidity = parseFloat(parts[1]);
+                const soil = parseInt(parts[2]);
+
+                if (!isNaN(temp) && !isNaN(humidity) && !isNaN(soil)) {
+                    updateDashboardUI(temp, humidity, soil);
+                }
+            }
+        }
+
+        // Update Dashboard Display & Gauges
+        function updateDashboardUI(temp, humidity, soil) {
+            document.getElementById('tempValue').innerText = temp.toFixed(1);
+            document.getElementById('tempBar').style.width = `${Math.min(Math.max((temp / 50) * 100, 0), 100)}%`;
+
+            document.getElementById('humidityValue').innerText = humidity.toFixed(1);
+            document.getElementById('humidityBar').style.width = `${Math.min(Math.max(humidity, 0), 100)}%`;
+
+            document.getElementById('soilValue').innerText = soil;
+            document.getElementById('soilBar').style.width = `${Math.min(Math.max(soil, 0), 100)}%`;
+
+            const soilStatusText = document.getElementById('soilStatusText');
+            if (soil < 30) {
+                soilStatusText.innerText = "ស្ថានភាពដី: ស្ងួតខ្លាំង (Dry)";
+                soilStatusText.className = "text-[11px] text-red-600 mt-2 text-right font-medium";
+            } else if (soil <= 70) {
+                soilStatusText.innerText = "ស្ថានភាពដី: ល្អសមរម្យ (Optimal)";
+                soilStatusText.className = "text-[11px] text-emerald-600 mt-2 text-right font-medium";
+            } else {
+                soilStatusText.innerText = "ស្ថានភាពដី: សើមខ្លាំង (Wet)";
+                soilStatusText.className = "text-[11px] text-blue-600 mt-2 text-right font-medium";
+            }
+
+            // Chart Data Update
+            const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            if (sensorChart.data.labels.length >= maxDataPoints) {
+                sensorChart.data.labels.shift();
+                sensorChart.data.datasets[0].data.shift();
+                sensorChart.data.datasets[1].data.shift();
+                sensorChart.data.datasets[2].data.shift();
+            }
+
+            sensorChart.data.labels.push(timeLabel);
+            sensorChart.data.datasets[0].data.push(temp);
+            sensorChart.data.datasets[1].data.push(humidity);
+            sensorChart.data.datasets[2].data.push(soil);
+            sensorChart.update();
+
+            // ============================================================
+            // ⚠️ AUTO IRRIGATION LOGIC — កែសម្រួល៖ បើកម៉ូទ័រពេល soil ≥ 90%
+            // ============================================================
+            if (autoIrrigationEnabled) {
+                if (soil >= 90 && !currentPumpState) {
+                    log("ស្វ័យប្រវត្តិ: សំណើមដី ≥ 90% កំពុងផ្ញើបញ្ជាបើកម៉ូទ័រ...", "system");
+                    setPumpState(true);
+                } else if (soil < 90 && currentPumpState) {
+                    log("ស្វ័យប្រវត្តិ: សំណើមដី < 30% កំពុងផ្ញើបញ្ជាបិទម៉ូទ័រ...", "system");
+                    setPumpState(false);
+                }
+            }
+        }
+
+        // Relay Pump Control Trigger
+        function togglePump(enabled) {
+            setPumpState(enabled);
+        }
+
+        async function setPumpState(state) {
+            currentPumpState = state;
+            const command = state ? "PUMP_ON" : "PUMP_OFF";
+            
+            document.getElementById('pumpToggle').checked = state;
+            
+            const pumpIcon = document.getElementById('pumpIcon');
+            const pumpStatusText = document.getElementById('pumpStatusText');
+
+            if (state) {
+                pumpIcon.className = "w-11 h-11 rounded-xl bg-blue-500/20 text-blue-600 flex items-center justify-center text-xl animate-pulse glow-effect-blue";
+                pumpStatusText.innerText = "ស្ថានភាព: កំពុងបើក (ON)";
+                pumpStatusText.className = "text-xs text-blue-600 font-semibold";
+            } else {
+                pumpIcon.className = "w-11 h-11 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center text-xl";
+                pumpStatusText.innerText = "ស្ថានភាព: បិទ (OFF)";
+                pumpStatusText.className = "text-xs text-slate-500";
+            }
+
+            if (rxCharacteristic && bleDevice && bleDevice.gatt.connected) {
+                try {
+                    const encoder = new TextEncoder();
+                    await rxCharacteristic.writeValue(encoder.encode(command));
+                    log(`ផ្ញើបញ្ជាទៅ ESP32: "${command}"`, "sent");
+                } catch (err) {
+                    log(`បរាជ័យក្នុងការផ្ញើបញ្ជា: ${err.message}`, "error");
+                }
+            } else if (isDemoMode) {
+                log(`[Demo Command Sent]: "${command}"`, "sent");
+            } else {
+                log("មិនអាចផ្ញើបញ្ជាបានទេ! មិនទាន់ភ្ជាប់ Bluetooth", "error");
+            }
+        }
+
+        // Toggle Auto Irrigation logic
+        function toggleAutoIrrigation(enabled) {
+            autoIrrigationEnabled = enabled;
+            if (enabled) {
+                log("បានបើកមុខងារស្រោចទឹកស្វ័យប្រវត្តិ (Auto-Irrigation Enabled) — បើកម៉ូទ័រពេល soil ≥ 90%", "system");
+            } else {
+                log("បានបិទមុខងារស្រោចទឹកស្វ័យប្រវត្តិ (Auto-Irrigation Disabled)", "system");
+            }
+        }
+
+        // Demo Mode
+        function toggleDemoMode() {
+            isDemoMode = !isDemoMode;
+            const demoBtn = document.getElementById('demoBtn');
+            const demoText = document.getElementById('demoText');
+
+            if (isDemoMode) {
+                if (bleDevice && bleDevice.gatt.connected) disconnectBLE();
+
+                demoBtn.className = "px-3 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-700 font-medium text-xs border border-amber-500/50 transition-all flex items-center gap-2";
+                demoText.innerText = "សាកល្បង (Demo Mode: ON)";
+                updateConnectionStatus('connected');
+                log("បានបើក Demo Mode! កំពុងបង្កើតទិន្នន័យ Sensor 模拟...", "system");
+
+                let mockSoil = 45;
+                demoInterval = setInterval(() => {
+                    const mockTemp = 27 + (Math.random() * 3 - 1.5);
+                    const mockHumidity = 62 + (Math.random() * 6 - 3);
+
+                    if (currentPumpState) {
+                        mockSoil = Math.min(100, mockSoil + 8);
+                    } else {
+                        mockSoil = Math.max(15, mockSoil - 2);
+                    }
+
+                    const dataString = `${mockTemp.toFixed(1)},${mockHumidity.toFixed(1)},${mockSoil}`;
+                    log(`[Demo Sensor Received]: "${dataString}"`);
+                    processSensorDataString(dataString);
+                }, 2000);
+
+            } else {
+                clearInterval(demoInterval);
+                demoBtn.className = "px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs border border-slate-300 transition-all flex items-center gap-2";
+                demoText.innerText = "សាកល្បង (Demo Mode: OFF)";
+                updateConnectionStatus('disconnected');
+                log("បានបិទ Demo Mode", "system");
+            }
+        }
+
+        // Fullscreen toggle
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', updateFullscreenUI);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+        document.addEventListener('msfullscreenchange', updateFullscreenUI);
+
+        function updateFullscreenUI() {
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+            const btn = document.getElementById('fullscreenBtn');
+            
+            if (isFullscreen) {
+                btn.innerHTML = '<i class="fa-solid fa-compress"></i> <span id="fullscreenText">ចាកចេញ (Exit Fullscreen)</span>';
+                btn.className = "px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs border border-indigo-700 transition-all flex items-center gap-2";
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-expand"></i> <span id="fullscreenText">ពេញអេក្រង់ (Fullscreen)</span>';
+                btn.className = "px-3 py-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-medium text-xs border border-indigo-300 transition-all flex items-center gap-2";
+            }
+        }
+    </script>
+</body>
+</html>
